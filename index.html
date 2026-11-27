@@ -146,8 +146,21 @@ header{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid 
 .close{position:absolute;right:12px;top:12px;width:38px;height:38px;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);font-size:20px;z-index:3}
 .pm{display:grid}
 @media(min-width:760px){.pm{grid-template-columns:1fr 1fr}}
-.pm .thumb{border-radius:24px 24px 0 0;cursor:default;font-size:110px}
-@media(min-width:760px){.pm .thumb{border-radius:24px 0 0 24px;aspect-ratio:auto;min-height:100%}}
+.pm .media{display:flex;flex-direction:column;background:var(--bg);border-radius:24px 24px 0 0;overflow:hidden}
+@media(min-width:760px){.pm .media{border-radius:24px 0 0 24px}}
+.pm .thumb{border-radius:0;cursor:default;font-size:110px;flex:1;min-height:280px}
+@media(min-width:760px){.pm .thumb{aspect-ratio:auto;min-height:360px}}
+.gal-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--navy);font-size:22px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.gal-nav:hover{background:#fff}
+.gal-prev{left:10px}
+.gal-next{right:10px}
+.gal-count{position:absolute;right:10px;bottom:10px;z-index:3;background:rgba(13,17,80,.78);color:#fff;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
+.gal-thumbs{display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid var(--line);overflow-x:auto}
+.gal-thumbs button{flex:none;width:58px;height:58px;border-radius:10px;overflow:hidden;border:2px solid var(--line);padding:0;background:var(--bg);transition:border-color .15s,transform .15s}
+.gal-thumbs button.on{border-color:var(--orange);transform:scale(1.03)}
+.gal-thumbs img{width:100%;height:100%;object-fit:cover}
+.line .th{position:relative;overflow:hidden}
+.line .th img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .pm .body{padding:18px;display:flex;flex-direction:column;gap:12px}
 .pm h2{font-size:34px;text-transform:uppercase;color:var(--navy)}
 .pm .desc{color:var(--muted)}
@@ -303,17 +316,18 @@ footer small{display:block;margin-top:18px;opacity:.7}
 const CONFIG = {
   whatsapp: "5492914403367",                         // formato internacional, sin + ni espacios
   facebook: "https://www.facebook.com/profile.php?id=61592728191110",
-  sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSa9SNZLuHE4Wy-sJA-e3Az9rSzsJFAMRLlux4opXBFjhX60bhLeyLRbHAXvwYiLoanRuS1FQJ0xiOs/pub?gid=0&single=true&output=csv",                                   // pegar acá el link CSV publicado de Google Sheets
+  sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSa9SNZLuHE4Wy-sJA-e3Az9rSzsJFAMRLlux4opXBFjhX60bhLeyLRbHAXvwYiLoanRuS1FQJ0xiOs/pub?gid=0&single=true&output=csv",
   promoEnds: "2026-12-24T23:59:59-03:00"             // fin de la cuenta regresiva de fiestas
 };
 
 /* Columnas del Sheet:
-   id | nombre | categoria | precio | colores | regalo | envio_gratis | cuotas | descripcion | imagen | destacado | activo
+   id | miniatura | nombre | categoria | precio | colores | regalo | envio_gratis | cuotas | descripcion | imagen | destacado | activo | imagen_2 | imagen_3
    - colores: separados con | (ej: Negro|Azul|Rojo)
    - envio_gratis / destacado / activo: SI o NO
-   - precio vacío o 0 => muestra "Consultar precio"                                         */
+   - precio vacío o 0 => muestra "Consultar precio"
+   - imagen, imagen_2, imagen_3... => galería automática en el modal                         */
 
-/* Datos de DEMO (se usan si sheetCsvUrl está vacío o falla). Precios sin cargar; colores del mate de ejemplo. */
+/* Datos de DEMO (se usan solo si sheetCsvUrl está vacío o falla) */
 const DEMO = [
   {id:"1",nombre:"Netbook Positivo BGH 11,6\"",categoria:"Tecnología",precio:0,colores:"",regalo:"Auriculares de regalo",envio_gratis:"SI",cuotas:"Todos los medios de pago",descripcion:"Intel Celeron N4000 · 4 GB de RAM · SSD M.2 de 128 GB · Pantalla de 11,6\" · Windows 10 lista para usar. El mejor regalo para estas fiestas.",imagen:"",destacado:"SI",activo:"SI"},
   {id:"2",nombre:"Mate autocebante",categoria:"Mates y cocina",precio:0,colores:"Negro|Plateado|Azul",regalo:"",envio_gratis:"NO",cuotas:"",descripcion:"Mate autocebante con bombilla incorporada. Disponible en varios colores.",imagen:"",destacado:"SI",activo:"SI"},
@@ -329,16 +343,35 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const yes = v => ["si","sí","true","1","x","yes"].includes(String(v ?? "").trim().toLowerCase());
 const money = n => "$ " + Math.round(n).toLocaleString("es-AR");
 const waLink = txt => "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(txt);
-const ICONS = {"tecnología":"💻","mates y cocina":"🧉","gourmet":"🫒","moto":"🏍️","ofertas":"🏷️","hogar":"🏠","indumentaria":"👕"};
+const ICONS = {
+  "tecnología":"💻",
+  "tecnologia":"💻",
+  "mates y cocina":"🧉",
+  "gourmet":"🫒",
+  "moto":"🏍️",
+  "moto y accesorios":"🏍️",
+  "perfumería":"✨",
+  "perfumeria":"✨",
+  "ofertas":"🏷️",
+  "hogar":"🏠",
+  "indumentaria":"👕"
+};
 const COLORS = {negro:"#111",blanco:"#fff",plateado:"#C3C8D0",gris:"#8A8F99",azul:"#1E5BC6",celeste:"#4BB3E8",rojo:"#D62828",rosa:"#F48FB1",verde:"#2E9E4F",naranja:"#F7821B",amarillo:"#F7D31B",violeta:"#7B4FC9",dorado:"#D4AF37"};
-const catIcon = c => ICONS[String(c).toLowerCase()] || "🛍️";
+const catIcon = c => ICONS[String(c).trim().toLowerCase()] || "🛍️";
 
 function parsePrice(v){
   if(typeof v === "number") return v;
   let s = String(v ?? "").replace(/[^\d.,]/g,"");
   if(!s) return 0;
-  if(s.includes(",")) s = s.replace(/\./g,"").replace(",",".");
-  else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,"");
+  if(s.includes(",") && s.includes(".")){
+    s = s.lastIndexOf(",") > s.lastIndexOf(".")
+      ? s.replace(/\./g,"").replace(",",".")
+      : s.replace(/,/g,"");
+  } else if(s.includes(",")){
+    s = /^\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g,"") : s.replace(",",".");
+  } else if(/^\d{1,3}(\.\d{3})+$/.test(s)){
+    s = s.replace(/\./g,"");
+  }
   return parseFloat(s) || 0;
 }
 
@@ -353,22 +386,40 @@ function parseCSV(text){
     else if(c!=="\r") cur+=c;
   }
   if(cur.length||row.length){ row.push(cur); rows.push(row); }
-  const head = (rows.shift()||[]).map(h=>h.trim().toLowerCase());
+  const head = (rows.shift()||[]).map(h=>h.replace(/^\uFEFF/,"").trim().toLowerCase());
   return rows.filter(r=>r.some(x=>x.trim())).map(r=>Object.fromEntries(head.map((h,i)=>[h,(r[i]||"").trim()])));
 }
 
+function extractImages(r){
+  const keys = Object.keys(r).filter(k => /^imagen(_?\d+)?$/.test(k)).sort((a,b)=>{
+    const na = a === "imagen" ? 1 : parseInt(a.replace(/\D/g,""),10) || 99;
+    const nb = b === "imagen" ? 1 : parseInt(b.replace(/\D/g,""),10) || 99;
+    return na - nb;
+  });
+  const list = [];
+  for(const k of keys){
+    const raw = r[k] || "";
+    raw.split("|").map(u=>u.trim()).filter(Boolean).forEach(u=>{
+      if(!list.includes(u)) list.push(u);
+    });
+  }
+  return list;
+}
+
 function normalize(r,i){
+  const imgs = extractImages(r);
   return {
     id: String(r.id || i+1),
     nombre: r.nombre || "Producto",
-    categoria: r.categoria || "Varios",
+    categoria: r.categoria || r["categoría"] || "Varios",
     precio: parsePrice(r.precio),
     colores: (r.colores||"").split("|").map(x=>x.trim()).filter(Boolean),
     regalo: r.regalo || "",
     envio: yes(r.envio_gratis),
     cuotas: r.cuotas || "",
-    desc: r.descripcion || "",
-    img: r.imagen || "",
+    desc: r.descripcion || r["descripción"] || "",
+    img: imgs[0] || "",
+    imgs,
     dest: yes(r.destacado),
     activo: r.activo === undefined || r.activo === "" ? true : yes(r.activo)
   };
@@ -402,7 +453,7 @@ async function loadProducts(){
     }catch(e){ console.warn("No se pudo leer el Sheet, uso datos de demo", e); rows = DEMO; }
   }
   products = rows.map(normalize).filter(p=>p.activo);
-  buildChips(); render();
+  buildChips(); render(); renderCart();
 }
 
 function buildChips(){
@@ -431,6 +482,25 @@ function thumbHTML(p, big){
     <span aria-hidden="true">${catIcon(p.categoria)}</span>
     ${p.img?`<img src="${esc(p.img)}" alt="${esc(p.nombre)}" loading="lazy" onerror="this.remove()">`:""}
     <div class="badges">${badges.join("")}</div></div>`;
+}
+
+function modalGalleryHTML(p){
+  const badges = [];
+  if(p.regalo) badges.push(`<span class="badge o">🎁 ${esc(p.regalo)}</span>`);
+  if(p.envio) badges.push(`<span class="badge g">Envío sin cargo</span>`);
+  if(p.dest && !p.regalo) badges.push(`<span class="badge">⭐ Destacado</span>`);
+  const multi = p.imgs.length > 1;
+  return `<div class="media">
+    <div class="thumb ${gClass(p)}">
+      <span aria-hidden="true">${catIcon(p.categoria)}</span>
+      ${p.img?`<img id="mImg" src="${esc(p.img)}" alt="${esc(p.nombre)}" onerror="this.style.display='none'">`:""}
+      <div class="badges">${badges.join("")}</div>
+      ${multi?`<button class="gal-nav gal-prev" id="gPrev" aria-label="Foto anterior">‹</button>
+      <button class="gal-nav gal-next" id="gNext" aria-label="Foto siguiente">›</button>
+      <span class="gal-count" id="gCount">1 / ${p.imgs.length}</span>`:""}
+    </div>
+    ${multi?`<div class="gal-thumbs" id="gThumbs">${p.imgs.map((u,i)=>`<button type="button" class="${i===0?"on":""}" data-gi="${i}" aria-label="Ver foto ${i+1}"><img src="${esc(u)}" alt="${esc(p.nombre)} foto ${i+1}" loading="lazy"></button>`).join("")}</div>`:""}
+  </div>`;
 }
 
 function render(){
@@ -465,13 +535,13 @@ function observe(){
 /* ============================================================
    Modal de producto
    ============================================================ */
-let current = null, modalQty = 1;
+let current = null, modalQty = 1, galIdx = 0;
 
 function openProduct(id){
   const p = products.find(x=>x.id===id); if(!p) return;
-  current = p; modalQty = 1;
+  current = p; modalQty = 1; galIdx = 0;
   const sw = p.colores.length ? `<div><div class="lbl">Color</div><div class="sw" id="sw">${p.colores.map((c,i)=>`<label><input type="radio" name="color" value="${esc(c)}" ${i===0?"checked":""}><span><i style="background:${COLORS[c.toLowerCase()]||"#999"}"></i>${esc(c)}</span></label>`).join("")}</div></div>` : "";
-  $("#pBody").innerHTML = `<div class="pm">${thumbHTML(p,true)}
+  $("#pBody").innerHTML = `<div class="pm">${modalGalleryHTML(p)}
     <div class="body">
       <span class="cat" style="color:var(--teal);font-weight:700;font-size:12px;letter-spacing:.8px;text-transform:uppercase">${esc(p.categoria)}</span>
       <h2>${esc(p.nombre)}</h2>
@@ -486,6 +556,23 @@ function openProduct(id){
         <a class="btn wa" id="mWa" href="#" target="_blank" rel="noopener">💬 Pedir ahora</a>
       </div>
     </div></div>`;
+
+  if(p.imgs.length > 1){
+    const setPhoto = idx => {
+      galIdx = (idx + p.imgs.length) % p.imgs.length;
+      const img = $("#mImg");
+      if(img){ img.style.display = ""; img.src = p.imgs[galIdx]; }
+      $("#gCount").textContent = `${galIdx + 1} / ${p.imgs.length}`;
+      document.querySelectorAll("#gThumbs button").forEach((b,i)=>b.classList.toggle("on", i === galIdx));
+    };
+    $("#gPrev").onclick = () => setPhoto(galIdx - 1);
+    $("#gNext").onclick = () => setPhoto(galIdx + 1);
+    $("#gThumbs").onclick = e => {
+      const b = e.target.closest("[data-gi]");
+      if(b) setPhoto(+b.dataset.gi);
+    };
+  }
+
   const sel = () => { const r=$("input[name=color]:checked"); return r ? r.value : ""; };
   const upd = () => { $("#mQ").textContent = modalQty; $("#mWa").href = waLink(orderText([{p, qty:modalQty, color:sel()}])); };
   $("#mMinus").onclick = () => { modalQty = Math.max(1, modalQty-1); upd(); };
@@ -529,7 +616,7 @@ function renderCart(){
   }
   $("#lines").innerHTML = lines.map((l,i)=>`
     <div class="line">
-      <div class="th ${gClass(l.p)}">${catIcon(l.p.categoria)}</div>
+      <div class="th ${gClass(l.p)}">${catIcon(l.p.categoria)}${l.p.img?`<img src="${esc(l.p.img)}" alt="${esc(l.p.nombre)}" onerror="this.remove()">`:""}</div>
       <div><h4>${esc(l.p.nombre)}</h4>
         <small>${l.color?esc(l.color)+" · ":""}${l.p.precio>0?money(l.p.precio):"Consultar precio"}</small>
         <div class="qty"><button data-q="-1" data-i="${i}" aria-label="Menos">−</button><b>${l.qty}</b><button data-q="1" data-i="${i}" aria-label="Más">+</button></div></div>
